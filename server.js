@@ -1,10 +1,10 @@
 // server.js
-
 const express = require("express");
 const bodyParser = require("body-parser");
-const mongoose = require("./connection");
 const path = require("path");
 const cors = require("cors");
+
+const Member = require("./models/Member"); // Import the model
 
 const app = express();
 const PORT = 3000;
@@ -13,55 +13,50 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Schema
-const memberSchema = new mongoose.Schema({
-    name: String,
-    email: String,
-    membershipType: String,
-    expiryDate: Date
-});
-
-const Member = mongoose.model("Member", memberSchema);
-
-// Serve HTML
+// Serve Frontend
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "index.html"));
 });
 
-// Renew Membership (Insert or Update)
+// Renew Membership
 app.post("/renew", async (req, res) => {
     try {
         const { name, email, membershipType, expiryDate } = req.body;
 
-        // Check if member already exists
+        if (new Date(expiryDate) <= new Date()) {
+            return res.status(400).send("Expiry date must be in the future ❌");
+        }
+
         let member = await Member.findOne({ email });
 
         if (member) {
-            // Update expiry date
             member.membershipType = membershipType;
-            member.expiryDate = expiryDate;
+            member.expiryDate = new Date(expiryDate);
             await member.save();
-            res.send("Membership renewed successfully ✅");
+            return res.send("Membership renewed successfully ✅");
         } else {
-            // Create new member
             const newMember = new Member({
                 name,
                 email,
                 membershipType,
-                expiryDate
+                expiryDate: new Date(expiryDate)
             });
-
             await newMember.save();
-            res.send("New membership created successfully ✅");
+            return res.send("New membership created successfully ✅");
         }
 
     } catch (error) {
         console.error(error);
-        res.status(500).send("Error processing request ❌");
+        if (error.code === 11000) {
+            res.status(400).send("Email already exists ❌");
+        } else {
+            res.status(500).send("Error processing request ❌");
+        }
     }
 });
 
+// Start Server
 app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
 
