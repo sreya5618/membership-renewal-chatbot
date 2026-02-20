@@ -5,7 +5,8 @@ const path = require("path");
 const cors = require("cors");
 
 const Member = require("./models/Member"); // Import the model
-
+const mongoose = require("./connection");
+const connection = require("./connection")
 const app = express();
 const PORT = 3000;
 
